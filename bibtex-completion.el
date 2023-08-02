@@ -1212,7 +1212,7 @@ string if FIELD is not present in ENTRY and DEFAULT is nil."
                           'upcase
                           (replace-regexp-in-string ; preserve stuff in braces from being downcased
                            "\\(^[^{]*{\\)\\|\\(}[^{]*{\\)\\|\\(}.*$\\)\\|\\(^[^{}]*$\\)"
-                           (lambda (x) (downcase (s-replace "\\" "\\\\" x)))
+                           (lambda (x) (s-replace "\\" "\\\\" x))
                            value)))))
               ("booktitle" value)
               ;; Maintain the punctuation and capitalization that is used by
