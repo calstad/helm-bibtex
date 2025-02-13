@@ -5,7 +5,7 @@
 ;; Maintainer: Titus von der Malsburg <malsburg@posteo.de>
 ;; URL: https://github.com/tmalsburg/helm-bibtex
 ;; Version: 1.0.0
-;; Package-Requires: ((parsebib "1.0") (s "1.9.0") (dash "2.6.0") (f "0.16.2") (cl-lib "0.5") (biblio "0.2") (emacs "26.1"))
+;; Package-Requires: ((parsebib "6.0") (s "1.9.0") (dash "2.6.0") (f "0.16.2") (cl-lib "0.5") (biblio "0.2") (emacs "26.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -128,6 +128,7 @@ This should be a single character."
 (defcustom bibtex-completion-format-citation-functions
   '((org-mode      . bibtex-completion-format-citation-ebib)
     (latex-mode    . bibtex-completion-format-citation-cite)
+    (LaTeX-mode    . bibtex-completion-format-citation-cite)    
     (markdown-mode . bibtex-completion-format-citation-pandoc-citeproc)
     (python-mode   . bibtex-completion-format-citation-sphinxcontrib-bibtex)
     (rst-mode      . bibtex-completion-format-citation-sphinxcontrib-bibtex)
@@ -294,6 +295,7 @@ browser in `helm-browse-url-default-browser-alist'"
 "Autocite" "autocite*" "Autocite*" "citeauthor" "Citeauthor"
 "citeauthor*" "Citeauthor*" "citetitle" "citetitle*" "citeyear"
 "citeyear*" "citedate" "citedate*" "citeurl" "nocite" "fullcite"
+"citet" "citep" "citet*" "citep*"
 "footfullcite" "notecite" "Notecite" "pnotecite" "Pnotecite"
 "fnotecite")
   "The list of LaTeX cite commands.
@@ -492,9 +494,10 @@ for string replacement."
                    for entry-type = (parsebib-find-next-item)
                    while entry-type
                    if (string= (downcase entry-type) "string")
-                   collect (let ((entry (parsebib-read-string (point) ht)))
+                   collect (let ((entry (parsebib-read-string ht)))
                              (puthash (car entry) (cdr entry) ht)
-                             entry))))
+                             entry)
+                   else do (forward-line 1))))
     (-filter (lambda (x) x) strings)))
 
 (defun bibtex-completion-update-strings-ht (ht strings)
@@ -682,8 +685,8 @@ If HT-STRINGS is provided it is assumed to be a hash table."
                                bibtex-completion-additional-search-fields))
    for entry-type = (parsebib-find-next-item)
    while entry-type
-   unless (member-ignore-case entry-type '("preamble" "string" "comment"))
-   collect (let* ((entry (parsebib-read-entry entry-type (point) ht-strings))
+   if (not (member-ignore-case entry-type '("preamble" "string" "comment")))
+   collect (let* ((entry (parsebib-read-entry nil ht-strings))
                   (fields (append
                            (list (if (assoc-string "author" entry 'case-fold)
                                      "author"
@@ -694,7 +697,8 @@ If HT-STRINGS is provided it is assumed to be a hash table."
                            fields)))
              (-map (lambda (it)
                      (cons (downcase (car it)) (cdr it)))
-                   (bibtex-completion-prepare-entry entry fields)))))
+                   (bibtex-completion-prepare-entry entry fields)))
+   else do (forward-line 1)))
 
 (defun bibtex-completion-get-entry (entry-key)
   "Given a BibTeX key this function scans all bibliographies listed in `bibtex-completion-bibliography' and returns an alist of the record with that key.
@@ -713,9 +717,10 @@ Fields from crossreferenced entries are appended to the requested entry."
                                      "\\)[[:space:]]*[\(\{][[:space:]]*"
                                      (regexp-quote entry-key) "[[:space:]]*,")
                              nil t)
-          (let ((entry-type (match-string 1)))
+          (progn
+            (goto-char (match-beginning 0))
             (reverse (bibtex-completion-prepare-entry
-                      (parsebib-read-entry entry-type (point) bibtex-completion-string-hash-table) nil do-not-find-pdf)))
+                      (parsebib-read-entry nil bibtex-completion-string-hash-table) nil do-not-find-pdf)))
         (progn
           (display-warning :warning (concat "Bibtex-completion couldn't find entry with key \"" entry-key "\"."))
           nil)))))
